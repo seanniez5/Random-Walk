@@ -2,7 +2,6 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/M3OEP_sniez.iml" filepath="$PROJECT_DIR$/.idea/M3OEP_sniez.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/Random-Walk.iml" filepath="$PROJECT_DIR$/.idea/Random-Walk.iml" />
     </modules>
   </component>

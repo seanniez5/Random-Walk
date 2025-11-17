@@ -78,3 +78,6 @@ plt.title("Ensemble-Averaged Squared Displacement vs. Step")
 plt.grid(True)
 plt.tight_layout()
 plt.show()
+
+os.remove("randomwalk.csv")
+print("CSV deleted")
