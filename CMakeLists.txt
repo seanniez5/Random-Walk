@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.28)
-project(M3OEP_sniez)
+project(Random-Walk)
 
 set(CMAKE_CXX_STANDARD 14)
 
-add_executable(M3OEP_sniez
+add_executable(Random-Walk
         multiwalk.cpp)
