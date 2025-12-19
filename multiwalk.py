@@ -1,5 +1,5 @@
 # import libraries
-from subprocess import Popen, PIPE, check_output
+from subprocess import Popen
 import subprocess
 import os
 import pandas as pd
@@ -18,16 +18,61 @@ while True:
     except ValueError:
         print("Error: Please enter an integer value")
 
-# get the total number of steps each walker will take (max 100,000)
+# get the total number of steps each walker will take (max 50,000)
 while True:
     try:
-        num_steps = int(input("Enter the number of steps (2 to 100,000): "))
-        if 1 <= num_steps <= 100000:
+        num_steps = int(input("Enter the number of steps (2 to 50,000): "))
+        if 2 <= num_steps <= 50000:
             break
         else:
-            print("Error: Please enter a number between 1 and 100,000")
+            print("Error: Please enter a number between 1 and 50,000")
     except ValueError:
         print("Error: Please enter an integer value")
+
+# get the x-axis drift
+while True:
+    try:
+        driftX = float(input("Enter the x-axis drift (-1 to 1): "))
+        if -1 <= driftX <= 1:
+            break
+        else:
+            print("Error: Please enter a number between -1 and 1")
+    except ValueError:
+        print("Error: Please enter a value without a comma")
+
+# get the y-axis drift
+while True:
+    try:
+        driftY = float(input("Enter the y-axis drift (-1 to 1): "))
+        if -1 <= driftY <= 1:
+            break
+        else:
+            print("Error: Please enter a number between -1 and 1")
+    except ValueError:
+        print("Error: Please enter a value without a comma")
+
+# get the side length of the square domain
+while True:
+    try:
+        halfWidth = int(input("Enter half width of square domain (0 = unrestricted, max = 200): "))
+        if 0 <= halfWidth <= 200:
+            break
+        else:
+            print("Error: Please enter a number between 0 and 200")
+    except ValueError:
+        print("Error: Please enter an integer")
+
+# get the diffusion type
+while True:
+    try:
+        diffusionType = int(input("Enter the diffusion type (0 = normal, 1 = subdiffusion, 2 = superdiffusion): "))
+        if 0 <= diffusionType <= 2:
+            break
+        else:
+            print("Error: Please enter 0 for normal, 1 for subdiffusion, and 2 for superdiffusion")
+    except ValueError:
+        print("Error: Please enter a valid integer")
+
 
 # Compile C++ code
 # This is based on a snippet from BubbleSort.py in the Speed-Test guided project
@@ -39,7 +84,9 @@ except subprocess.CalledProcessError as e:
 
 # run the C++ exe with command line argument
 print("Opening C++ program")
-p = Popen('a.exe ' + str(num_walkers) + ' ' + str(num_steps), shell=True) # run the exe with num_walkers and num_steps
+args = f'a.exe {num_walkers} {num_steps} {driftX} {driftY} {halfWidth} {diffusionType}'
+
+p = Popen(args, shell=True) # run the exe with num_walkers and num_steps
 p.wait() # wait for the C++ program to finish
 
 os.remove("a.exe") # remove the exe now that the program has created the CSV we need
@@ -47,11 +94,9 @@ os.remove("a.exe") # remove the exe now that the program has created the CSV we 
 df = pd.read_csv("randomwalk.csv") # read in CSV output from the C++ file
 print("CSV read successfully") # notify user that the CSV was successfully read
 
-# plot the data
-
-# plotting the random walk paths of each walker
-plt.figure(figsize=(10,5))
-plt.subplot(1, 2, 1) # 1 row, 2 columns, lefthand subplot
+# INDIVIDUAL WALKER PATHS
+plt.figure(figsize=(14,12))
+plt.subplot(2, 2, 1)
 
 count_walkers = 0 # accumulator to count individual walkers
 for i in range(2, len(df.columns), 2): # start at index 2, step by 2
@@ -67,17 +112,58 @@ plt.xlabel("X")
 plt.ylabel("Y")
 plt.title("Individual Random Walk Paths")
 plt.grid(True)
-plt.legend() # tells us which walker corresponds to which path
+plt.legend()
 
-# plot expected squared displacement over time
-plt.subplot(1, 2, 2) # 1 row, 2 columns, righthand subplot
+# HEATMAP OF VISITED LOCATIONS
+
+plt.subplot(2, 2, 2)
+
+x = [] # all x values
+y = [] # all y values
+
+# extend the lists so that we can store (in order) every coordinate that each walker has been to
+for i in range(2, len(df.columns), 2): # skip first two columns and loop over walker's x values
+    x.extend(df[df.columns[i]].values) # fetch all the x values for each walker
+    y.extend(df[df.columns[i+1]].values) # fetch all the y values for each walker
+
+plt.hist2d(x, y, bins=100) # 100 x 100 grid, counts/plots each matching (x,y) pair
+plt.colorbar(label="Visit Count")
+plt.xlabel("X")
+plt.ylabel("Y")
+plt.title("Heatmap of Visited Locations")
+plt.grid(False)
+
+
+# SQUARED DISPLACEMENT OVER TIME
+
+plt.subplot(2, 2, 3) # 1 row, 2 columns, righthand subplot
 plt.plot(df['step'], df['exp_squared_disp'])
 plt.xlabel("Step")
-plt.ylabel("Expected Squared Displacement")
+plt.ylabel("Average Squared Displacement")
 plt.title("Ensemble-Averaged Squared Displacement vs. Step")
 plt.grid(True)
-plt.tight_layout()
-plt.show()
 
-os.remove("randomwalk.csv")
+# HISTOGRAM OF WALKER DISPLACEMENTS
+
+displacements = [] # collection of all final displacement numbers
+for i in range(2, len(df.columns), 2): # skip first two cols, index through the x columns
+    x_column = df.columns[i] # get the label of the ith column (x-axis)
+    y_column = df.columns[i+1] # get the label of the i+1 column (y-axis)
+    final_disp_x = df[x_column].iloc[-1] # get the last reported x coordinate
+    final_disp_y = df[y_column].iloc[-1] # get the last reported y coordinate
+
+    displacement = (final_disp_x**2 + final_disp_y**2)**0.5 # calculate the Euclidean distance from origin
+    displacements.append(displacement) # append to the displacements list
+
+plt.subplot(2, 2, 4)
+plt.hist(displacements, bins=20, color='steelblue', edgecolor='black')
+plt.xlabel("Displacement from Origin")
+plt.ylabel("Number of Walkers")
+plt.title("Histogram of Walker Displacements at Final Step")
+plt.grid(True)
+
+plt.tight_layout()
+plt.show() # present the figures
+
+os.remove("randomwalk.csv") # delete the csv file
 print("CSV deleted")
